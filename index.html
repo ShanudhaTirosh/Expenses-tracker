@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShanuFx Expense Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>" />
+  <meta name="theme-color" content="#06060f" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="bg-gradient-anim"></div>
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     APP WRAPPER
+═════════════════════════════════════════════════════════════ -->
+<div id="app-wrapper">
+
+  <!-- ── SIDEBAR ───────────────────────────────────────────── -->
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💳</div>
+      <span>ShanuFx Finance</span>
+    </div>
+
+    <span class="nav-section-label">Main</span>
+
+    <a class="nav-item active" data-page="dashboard" href="#">
+      <i class="fa-solid fa-gauge-high"></i>
+      <span class="nav-label">Dashboard</span>
+    </a>
+    <a class="nav-item" data-page="transactions" href="#">
+      <i class="fa-solid fa-list-ul"></i>
+      <span class="nav-label">Transactions</span>
+    </a>
+    <a class="nav-item" data-page="reports" href="#">
+      <i class="fa-solid fa-chart-pie"></i>
+      <span class="nav-label">Reports</span>
+    </a>
+
+    <span class="nav-section-label">Account</span>
+
+    <a class="nav-item" data-page="settings" href="#">
+      <i class="fa-solid fa-sliders"></i>
+      <span class="nav-label">Settings</span>
+    </a>
+
+    <div class="sidebar-footer">
+      <div class="nav-item" id="logout-btn" style="color:var(--neon-red);">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span class="nav-label sidebar-footer-text">Logout</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ──────────────────────────────────────── -->
+  <div id="main-content">
+
+    <!-- ── TOPBAR ────────────────────────────────────────────── -->
+    <header id="topbar">
+      <button class="topbar-toggle" id="sidebar-toggle" title="Toggle sidebar (S)">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+
+      <div class="topbar-title">
+        <span>Dashboard</span>
+      </div>
+
+      <div class="topbar-right">
+        <button class="topbar-btn" id="theme-toggle" title="Toggle theme">
+          <i class="fa-solid fa-sun"></i>
+        </button>
+        <button class="topbar-btn" id="export-csv-btn" title="Export CSV">
+          <i class="fa-solid fa-file-csv"></i>
+        </button>
+        <div class="topbar-avatar" id="user-avatar" title="Profile">U</div>
+      </div>
+    </header>
+
+    <!-- ════════════════════════════════════════════════════════
+         PAGE: DASHBOARD
+    ══════════════════════════════════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+
+      <!-- Summary Cards -->
+      <div class="summary-grid">
+        <div class="summary-card glass balance">
+          <div class="card-label">Total Balance</div>
+          <div class="card-value mono" id="card-balance">LKR 0.00</div>
+          <div class="card-sub">Income − Expenses</div>
+          <i class="fa-solid fa-wallet card-icon"></i>
+        </div>
+        <div class="summary-card glass income">
+          <div class="card-label">Total Income</div>
+          <div class="card-value mono" id="card-income" style="color:var(--neon-green)">LKR 0.00</div>
+          <div class="card-sub">All time</div>
+          <i class="fa-solid fa-arrow-trend-up card-icon"></i>
+        </div>
+        <div class="summary-card glass expense">
+          <div class="card-label">Total Expenses</div>
+          <div class="card-value mono" id="card-expense" style="color:var(--neon-red)">LKR 0.00</div>
+          <div class="card-sub">All time</div>
+          <i class="fa-solid fa-arrow-trend-down card-icon"></i>
+        </div>
+      </div>
+
+      <!-- Budget Bar -->
+      <div class="budget-section">
+        <div class="budget-card glass">
+          <div class="budget-top">
+            <div>
+              <div class="budget-title"><i class="fa-solid fa-bullseye" style="color:var(--neon-yellow);margin-right:8px;"></i>Monthly Budget</div>
+            </div>
+            <div class="budget-amounts" id="budget-amounts"></div>
+          </div>
+          <div class="budget-bar-wrap">
+            <div class="budget-bar-fill" id="budget-fill" style="width:0%"></div>
+          </div>
+          <div class="budget-pct" id="budget-pct">No budget set — configure in Settings</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-row">
+        <div class="chart-card glass">
+          <h3><i class="fa-solid fa-chart-pie"></i> By Category</h3>
+          <div class="chart-wrap" style="max-height:280px;">
+            <canvas id="pie-chart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card glass">
+          <h3><i class="fa-solid fa-chart-line"></i> 6-Month Trend</h3>
+          <div class="chart-wrap">
+            <canvas id="line-chart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div class="insights-row">
+        <div class="section-header">
+          <div class="section-title"><i class="fa-solid fa-lightbulb"></i> Smart Insights</div>
+        </div>
+        <div class="insights-grid" id="insights-grid"></div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="txn-section">
+        <div class="section-header">
+          <div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent Transactions</div>
+          <button class="btn btn-outline btn-sm" onclick="app.navigateTo('transactions')">
+            View All <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+        <div class="txn-list" id="recent-txns"></div>
+      </div>
+    </div><!-- /page-dashboard -->
+
+
+    <!-- ════════════════════════════════════════════════════════
+         PAGE: TRANSACTIONS
+    ══════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-transactions">
+
+      <div class="section-header" style="margin-bottom:20px;">
+        <div class="section-title"><i class="fa-solid fa-list-ul"></i> All Transactions</div>
+        <span class="text-muted fs-13" id="txn-count"></span>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <input type="search" id="search-input" placeholder="🔍  Search transactions…" />
+        <select id="filter-type">
+          <option value="all">All Types</option>
+          <option value="income">Income</option>
+          <option value="expense">Expense</option>
+        </select>
+        <select id="filter-category">
+          <option value="all">All Categories</option>
+        </select>
+        <input type="date" id="filter-date-from" title="From date" />
+        <input type="date" id="filter-date-to" title="To date" />
+        <button class="btn btn-outline btn-sm" id="export-csv-btn-2" onclick="document.getElementById('export-csv-btn').click()">
+          <i class="fa-solid fa-file-csv"></i> Export
+        </button>
+      </div>
+
+      <div class="txn-list" id="all-txns"></div>
+    </div><!-- /page-transactions -->
+
+
+    <!-- ════════════════════════════════════════════════════════
+         PAGE: REPORTS
+    ══════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-reports">
+
+      <div class="section-header" style="margin-bottom:24px;">
+        <div class="section-title"><i class="fa-solid fa-chart-bar"></i> Analytics & Reports</div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card glass">
+          <h3><i class="fa-solid fa-chart-pie"></i> Expense Breakdown</h3>
+          <canvas id="pie-chart-reports" style="display:none;"></canvas>
+          <!-- reuses main charts from dashboard render -->
+          <p class="text-muted fs-13" style="padding:12px 0;">Navigate to Dashboard to view charts, or refresh this page after adding transactions.</p>
+        </div>
+        <div class="chart-card glass">
+          <h3><i class="fa-solid fa-chart-line"></i> Monthly Trends</h3>
+          <p class="text-muted fs-13" style="padding:12px 0;">Charts are rendered on the Dashboard. Check the Dashboard tab.</p>
+        </div>
+      </div>
+
+      <!-- Category Breakdown Table -->
+      <div class="glass" style="padding:24px;margin-top:20px;">
+        <h3 style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:18px;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-table" style="color:var(--neon-green);"></i> Category Breakdown
+        </h3>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--glass-border);text-align:left;">
+                <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;letter-spacing:1px;font-size:11px;text-transform:uppercase;">Category</th>
+                <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;letter-spacing:1px;font-size:11px;text-transform:uppercase;">Amount</th>
+                <th style="padding:10px 12px;color:var(--text-muted);font-weight:600;letter-spacing:1px;font-size:11px;text-transform:uppercase;">Share</th>
+              </tr>
+            </thead>
+            <tbody id="cat-table-body">
+              <tr><td colspan="3" style="color:var(--text-muted);padding:20px 12px;">Add transactions to see category data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /page-reports -->
+
+
+    <!-- ════════════════════════════════════════════════════════
+         PAGE: SETTINGS
+    ══════════════════════════════════════════════════════════ -->
+    <div class="page" id="page-settings">
+
+      <div class="section-header" style="margin-bottom:24px;">
+        <div class="section-title"><i class="fa-solid fa-sliders"></i> Settings</div>
+      </div>
+
+      <!-- Profile -->
+      <div class="settings-card glass">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+          Profile
+        </h3>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label" id="profile-name">User</div>
+            <div class="settings-desc" id="profile-email">—</div>
+          </div>
+          <div class="topbar-avatar" id="user-avatar-settings">U</div>
+        </div>
+      </div>
+
+      <!-- Budget -->
+      <div class="settings-card glass">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;">
+          Monthly Budget
+        </h3>
+        <div class="form-group">
+          <label class="form-label">Budget Amount (LKR)</label>
+          <input type="number" id="budget-input" class="form-control"
+                 placeholder="e.g. 50000" min="0" step="100" />
+        </div>
+        <button class="btn btn-primary" id="save-budget-btn">
+          <i class="fa-solid fa-floppy-disk"></i> Save Budget
+        </button>
+      </div>
+
+      <!-- Preferences -->
+      <div class="settings-card glass">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+          Preferences
+        </h3>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Theme</div>
+            <div class="settings-desc">Toggle between dark and light glass</div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="settings-theme-btn" onclick="document.getElementById('theme-toggle').click()">
+            <i class="fa-solid fa-circle-half-stroke"></i> Toggle Theme
+          </button>
+        </div>
+      </div>
+
+      <!-- Keyboard Shortcuts -->
+      <div class="settings-card glass">
+        <h3 style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+          Keyboard Shortcuts
+        </h3>
+        <div class="settings-row">
+          <div class="settings-label">Add transaction</div>
+          <kbd>A</kbd>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Dashboard</div>
+          <kbd>D</kbd>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Transactions</div>
+          <kbd>T</kbd>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Reports</div>
+          <kbd>R</kbd>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Settings</div>
+          <kbd>S</kbd>
+        </div>
+        <div class="settings-row">
+          <div class="settings-label">Close modal</div>
+          <kbd>Esc</kbd>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="settings-card glass" style="border-color:rgba(255,77,109,0.2);">
+        <h3 style="font-size:13px;font-weight:700;color:var(--neon-red);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">
+          Danger Zone
+        </h3>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Sign out</div>
+            <div class="settings-desc">End your current session</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="document.getElementById('logout-btn').click()">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /page-settings -->
+
+  </div><!-- /main-content -->
+</div><!-- /app-wrapper -->
+
+
+<!-- ════════════════════════════════════════════════════════════
+     FLOATING ACTION BUTTON
+════════════════════════════════════════════════════════════ -->
+<button id="fab" title="Add Transaction (A)">+</button>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     ADD / EDIT TRANSACTION MODAL
+════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal glass">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Add Transaction</div>
+      <button class="modal-close" id="modal-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Type Toggle -->
+    <div class="form-group">
+      <label class="form-label">Transaction Type</label>
+      <div class="type-toggle">
+        <div class="type-btn expense active" data-type="expense">
+          <i class="fa-solid fa-arrow-trend-down"></i> Expense
+        </div>
+        <div class="type-btn income" data-type="income">
+          <i class="fa-solid fa-arrow-trend-up"></i> Income
+        </div>
+      </div>
+    </div>
+
+    <!-- Amount -->
+    <div class="form-group">
+      <label class="form-label" for="txn-amount">Amount (LKR)</label>
+      <input type="number" id="txn-amount" class="form-control"
+             placeholder="0.00" min="0" step="0.01" />
+    </div>
+
+    <!-- Category -->
+    <div class="form-group">
+      <label class="form-label" for="txn-category">Category</label>
+      <select id="txn-category" class="form-control"></select>
+    </div>
+
+    <!-- Date -->
+    <div class="form-group">
+      <label class="form-label" for="txn-date">Date</label>
+      <input type="date" id="txn-date" class="form-control" />
+    </div>
+
+    <!-- Note -->
+    <div class="form-group">
+      <label class="form-label" for="txn-note">Note (optional)</label>
+      <input type="text" id="txn-note" class="form-control"
+             placeholder="e.g. Grocery run at Keells…" />
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-outline" id="modal-cancel-btn" onclick="document.getElementById('modal-close').click()" style="flex:1;">
+        Cancel
+      </button>
+      <button class="btn btn-primary" id="save-txn-btn" style="flex:2;">
+        <i class="fa-solid fa-check"></i> Save Transaction
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════════════════ -->
+<script type="module" src="app.js"></script>
+
+<!-- PWA Service Worker Registration -->
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

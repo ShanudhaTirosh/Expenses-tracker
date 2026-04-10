@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — ShanuFx Expense Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+  <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+<div class="bg-gradient-anim"></div>
+<div id="toast-container"></div>
+
+<div class="login-page">
+  <div class="login-card glass">
+
+    <div class="login-logo">
+      <div class="logo-icon">💳</div>
+      <h1>ShanuFx Finance</h1>
+      <p>Private expense tracker — authorized users only</p>
+    </div>
+
+    <div class="login-error" id="login-error">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <span id="login-error-msg">Invalid credentials</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="email">Email Address</label>
+      <input type="email" id="email" class="form-control"
+             placeholder="you@example.com" autocomplete="email" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="password">Password</label>
+      <div style="position:relative;">
+        <input type="password" id="password" class="form-control"
+               placeholder="••••••••" autocomplete="current-password"
+               style="padding-right:44px;" />
+        <button type="button" id="pw-toggle"
+                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);
+                       background:none;border:none;color:var(--text-muted);cursor:pointer;
+                       font-size:15px;transition:color 0.2s;">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="login-btn" style="margin-top:8px;">
+      <i class="fa-solid fa-arrow-right-to-bracket"></i>
+      <span>Sign In</span>
+    </button>
+
+    <p style="text-align:center;margin-top:20px;font-size:12px;color:var(--text-muted);">
+      <kbd>Enter</kbd> to submit &nbsp;·&nbsp; Contact admin for access
+    </p>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, ALLOWED_EMAILS } from './firebase.js';
+  import { loginWithEmail, redirectIfLoggedIn } from './auth.js';
+
+  redirectIfLoggedIn();
+
+  /* ── GSAP entrance ── */
+  gsap.fromTo('.login-card',
+    { opacity: 0, y: 40, scale: 0.95 },
+    { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: 'power3.out' }
+  );
+
+  /* ── Password toggle ── */
+  const pwInput  = document.getElementById('password');
+  const pwToggle = document.getElementById('pw-toggle');
+  pwToggle.addEventListener('click', () => {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    pwToggle.querySelector('i').className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  });
+
+  /* ── Login logic ── */
+  const emailInput  = document.getElementById('email');
+  const loginBtn    = document.getElementById('login-btn');
+  const errorBox    = document.getElementById('login-error');
+  const errorMsg    = document.getElementById('login-error-msg');
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorBox.classList.add('show');
+    gsap.fromTo(errorBox, { x: -8 }, { x: 0, duration: 0.4, ease: 'elastic.out(1,0.4)' });
+  }
+  function hideError() { errorBox.classList.remove('show'); }
+
+  async function doLogin() {
+    const email    = emailInput.value.trim();
+    const password = pwInput.value;
+    if (!email || !password) { showError('Please fill in all fields.'); return; }
+
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in…';
+    hideError();
+
+    try {
+      await loginWithEmail(email, password);
+      // auth state change in auth.js will redirect
+    } catch (err) {
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In';
+      const map = {
+        'auth/user-not-found':  'No account found with this email.',
+        'auth/wrong-password':  'Incorrect password.',
+        'auth/invalid-email':   'Invalid email address.',
+        'auth/too-many-requests': 'Too many attempts. Try again later.',
+        'auth/invalid-credential': 'Invalid email or password.',
+      };
+      showError(map[err.code] || 'Login failed. Please try again.');
+    }
+  }
+
+  loginBtn.addEventListener('click', doLogin);
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
